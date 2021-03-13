@@ -5,5 +5,7 @@ builds:
       - linux
     goarch:
       - mipsle
+    gomips:
+      - hardfloat
 archives:
   - format: binary
