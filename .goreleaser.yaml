@@ -1,8 +1,9 @@
-project_name: edgeos-ddns-go
+project_name: ddns
 builds:
   - env: [CGO_ENABLED=0]
     goos:
       - linux
     goarch:
-      - amd64
       - mipsle
+archives:
+  - format: binary
