@@ -5,6 +5,9 @@ import (
 	"log/syslog"
 	"os"
 
+	"edgeos-ddns/dns/cloudflare"
+	"edgeos-ddns/notification/pushover"
+
 	_ "github.com/joho/godotenv/autoload" // Autoload .env file containing our secrets
 )
 
@@ -18,17 +21,18 @@ func main() {
 	poToken := os.Getenv("PUSHOVER_TOKEN")
 	poUser := os.Getenv("PUSHOVER_USER")
 
-	logwriter, e := syslog.New(syslog.LOG_NOTICE, "ddns-go")
-	if e == nil {
+	logwriter, err := syslog.New(syslog.LOG_NOTICE, "ddns-go")
+	if err == nil {
 		log.SetOutput(logwriter)
 	}
 
-	api := cfClient(cfApiKey, cfEmail)
+	api, err := cloudflare.New(cfApiKey, cfEmail)
+	if err != nil {
+		log.Fatalf("unable to create cloudflare client: %v", err)
+		return
+	}
 
-	app, recipient := poClient(poToken, poUser)
-
-	zoneID := getZoneID(cfZoneName, api)
-	id, cfIp := getDNSRecord(cfRecordName, zoneID, api)
+	id, cfIp := cloudflare.GetRecord(cfRecordName, zoneID, api)
 
 	ifaceIp := getInterfaceIP(ifaceName)
 
@@ -38,12 +42,16 @@ func main() {
 		if ipInRange(ifaceIp, cgNatRange) {
 			restartInterface(ifaceName)
 
-			notify("Restarted pppoe connection\nNew IP is"+getInterfaceIP(ifaceName).String(), *recipient, *app)
+			message := "Restarted pppoe connection\nNew IP is" + getInterfaceIP(ifaceName).String()
+			pushover.Notify(message, poToken, poUser)
+			if err != nil {
+				log.Fatalf("unable to ")
+			}
 		}
 
-		updateDNSRecord(zoneID, id, ifaceIp.String(), api)
+		cloudflare.UpdateRecord(zoneID, id, ifaceIp.String(), api)
 
-		notify("Updated Cloudflare with IP "+ifaceIp.String(), *recipient, *app)
+		pushover.Notify("Updated Cloudflare with IP "+ifaceIp.String(), poToken, poUser)
 	}
 
 }

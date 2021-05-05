@@ -1,33 +1,35 @@
-package main
+package cloudflare
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/cloudflare/cloudflare-go"
 )
 
-func cfClient(key string, email string) (result cloudflare.API) {
-	// Construct a new API object
+// Create a new API object
+func New(key string, email string) (*cloudflare.API, error) {
+
 	api, err := cloudflare.New(key, email)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("unable to create api")
 	}
-
-	return *api
+	return api, nil
 }
 
-func getZoneID(zoneName string, api cloudflare.API) (id string) {
-	zoneId, err := api.ZoneIDByName(zoneName)
+// Get zone ID by zone name.
+func zoneID(name string, api cloudflare.API) (string, error) {
+	id, err := api.ZoneIDByName(name)
 
 	if err != nil {
-		log.Fatal(err)
+		return "", fmt.Errorf("unable to get zone id: %v", err)
 	}
 
-	return zoneId
+	return id, nil
 }
 
-func getDNSRecord(recordName string, zoneID string, api cloudflare.API) (id string, content string) {
+func GetRecord(recordName string, zoneID string, api cloudflare.API) (id string, content string) {
 	record := cloudflare.DNSRecord{Name: recordName}
 
 	records, err := api.DNSRecords(context.Background(), zoneID, record)
@@ -43,7 +45,7 @@ func getDNSRecord(recordName string, zoneID string, api cloudflare.API) (id stri
 	}
 }
 
-func updateDNSRecord(zoneID string, recordID string, content string, api cloudflare.API) {
+func UpdateRecord(zoneID string, recordID string, content string, api cloudflare.API) {
 	record := cloudflare.DNSRecord{Content: content}
 
 	err := api.UpdateDNSRecord(context.Background(), zoneID, recordID, record)
